@@ -12,6 +12,16 @@ HC-SR04 → ESP32 ──Wi-Fi / HTTPS──► Supabase (bins) ──Realtime─
                                         └──► Backend API (Render): GET /api/route (NN + 2-opt)
 ```
 
+## Live deployment
+
+| Part | URL |
+|---|---|
+| Dashboard (Vercel) | https://street-view-dashboard.vercel.app |
+| Backend health check (Render) | https://street-view.onrender.com/health |
+| Optimized route API (Render) | https://street-view.onrender.com/api/route |
+
+The Render free tier sleeps when idle, so the first backend request can take up to a minute.
+
 ## Quick start
 
 ```bash
