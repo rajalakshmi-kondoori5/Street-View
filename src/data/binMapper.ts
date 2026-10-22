@@ -1,4 +1,4 @@
-import { CRITICAL_LEVEL } from '../config';
+import { CRITICAL_LEVEL } from '../constants';
 import type { Bin, BinLevel, Priority } from '../types';
 
 type Row = Record<string, unknown>;

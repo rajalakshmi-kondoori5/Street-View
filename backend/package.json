@@ -1,0 +1,33 @@
+{
+  "name": "street-view-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Street View API: secure ESP32 ingest + route optimization (Render)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/server.js",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "cors": "^2.8.6",
+    "express": "^4.22.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/node": "^20.19.43",
+    "@types/supertest": "^6.0.3",
+    "esbuild": "^0.24.2",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.6",
+    "vitest": "^2.1.9"
+  }
+}

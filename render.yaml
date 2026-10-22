@@ -1,0 +1,31 @@
+# Render Blueprint for the Street View backend (Dashboard -> New -> Blueprint -> pick this repo).
+# Secrets marked `sync: false` are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: street-view-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SUPABASE_URL
+        value: https://mimobvudcwnbupwfghpd.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: DEVICE_KEYS
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FILL_THRESHOLD
+        value: "90"
+      - key: DEPOT_NAME
+        value: Malkajgiri, Hyderabad
+      - key: DEPOT_LAT
+        value: "17.4475"
+      - key: DEPOT_LNG
+        value: "78.5268"

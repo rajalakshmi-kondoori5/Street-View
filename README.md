@@ -1,12 +1,12 @@
 # Street View — AI-Driven Smart Waste Bin Monitoring & Route Optimization
 
 ```
-HC-SR04 → ESP32 → Wi-Fi → Supabase (bins table) ──Realtime──► React dashboard
-                                                               │
-                                     bins ≥ threshold → OSRM distance matrix
-                                     → Nearest Neighbour → 2-opt → Depot→bins→Depot
-                                                               │
-                                     map · route summary · collection order · alerts
+HC-SR04 → ESP32 ──HTTPS + device key──► Backend API (Render) ──secret key──► Supabase (bins)
+                                         GET /api/route (NN + 2-opt)            │ Realtime
+                                                                                ▼
+                                              React dashboard (Vercel): bins ≥ threshold →
+                                              OSRM matrix → Nearest Neighbour → 2-opt →
+                                              Depot→bins→Depot · map · alerts
 ```
 
 ## Quick start
@@ -55,11 +55,45 @@ Raised on threshold **crossings** only (no repeats for a bin that stays full): *
 
 ## ESP32
 
-`esp32/smart_bin/smart_bin.ino` measures with the HC-SR04, converts distance to fill %, and PATCHes its own row (`"Bin ID" = BIN_ID`) with `Fill Level`, `Status`, `Last Updated`. Copy `secrets.example.h` → `secrets.h`. The device does no routing/AI.
+`esp32/smart_bin/smart_bin.ino` measures with the HC-SR04, converts distance to fill % and POSTs `{"fillLevel": n}` to `API_URL/api/bins/<BIN_ID>/reading` with header `X-Device-Key`. Copy `secrets.example.h` → `secrets.h` (git-ignored). The device holds no Supabase key and does no routing/AI.
+
+## Backend (`backend/`, deployed on Render)
+
+Express API. It reuses the same routing code as the dashboard (`src/routing`, bundled with esbuild).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Liveness check (used by Render) |
+| `GET /api/bins` | All bins |
+| `GET /api/route?threshold=90&depotLat=&depotLng=&road=true` | Optimized Depot → full bins → Depot plan |
+| `POST /api/bins/:binId/reading` | ESP32 ingest. Header `X-Device-Key`, body `{"fillLevel": 0-100}`. The server checks the per-bin key, sets `Status` and `Last Updated`, and writes with the Supabase secret key. Rate-limited per bin. |
+
+```bash
+cd backend
+npm install
+cp .env.example .env   # SUPABASE_SECRET_KEY, DEVICE_KEYS=BIN-001:<secret>, ...
+npm run dev            # http://localhost:8080
+npm test               # 9 API tests (in-memory store, no Supabase needed)
+```
+
+The dashboard does not depend on the backend: it reads Supabase directly (with Realtime) and optimizes in the browser, so it stays fast even while Render's free tier is asleep.
+
+## Deployment
+
+**Backend → Render**: New → Blueprint → select this repo (uses `render.yaml`). Then set the secret env vars in the Render dashboard:
+- `SUPABASE_SECRET_KEY`: Supabase → Project Settings → API Keys → secret key (server only)
+- `DEVICE_KEYS`: `BIN-001:<same value as DEVICE_KEY in the ESP32 secrets.h>` (add more bins with commas)
+- `CORS_ORIGINS`: your Vercel URL, e.g. `https://street-view.vercel.app`
+
+Then put the Render URL into the ESP32 `secrets.h` as `API_URL` and re-flash.
+
+**Frontend → Vercel**: Add New → Project → import this repo (root directory `.`; Vite is detected, see `vercel.json`). Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (publishable key), and `VITE_DATA_MODE=live` if the deployed site should open in LIVE MODE.
+
+**After the ESP32 posts through the backend**, run the hardening block at the end of `supabase/verify.sql` so the public key can no longer write.
 
 ## Supabase checks
 
-`supabase/verify.sql` lists the columns, confirms `bins` is in the Realtime publication, shows RLS policies, and finds bins without coordinates. It also contains an optional (commented) hardening step: if anon can UPDATE every column, anyone with the public key can change data.
+`supabase/verify.sql` lists the columns, confirms `bins` is in the Realtime publication, shows RLS policies, and finds bins without coordinates. The commented hardening block at the end removes the public key's write access once the backend is live.
 
 ## Scripts
 
@@ -69,6 +103,7 @@ Raised on threshold **crossings** only (no repeats for a bin that stays full): *
 
 ```
 src/
+  constants.ts           shared constants (no Vite), used by the backend too
   config.ts              env-driven settings, depot presets
   lib/supabase.ts        browser client (anon key)
   data/                  binMapper (column mapping), liveSource (SELECT + Realtime),
@@ -77,6 +112,7 @@ src/
   hooks/                 useBins, useAlerts, useOptimizedRoute, usePersistentState
   components/            Header, Sidebar, Toolbar, KpiCards, BinTable, RouteMap,
                          RoutePanels, AlertsPanel, Analytics, Settings
+backend/                 Express API for Render (ingest + route API)
 esp32/smart_bin/         ESP32 firmware
 supabase/verify.sql      read-only checks
 ```

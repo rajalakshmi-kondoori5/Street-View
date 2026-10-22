@@ -23,8 +23,7 @@ export const config = {
   serviceMinPerBin: num(env.VITE_SERVICE_MIN_PER_BIN, 2),
 };
 
-/** A bin at or above this level is "Critical" (never below the collection threshold). */
-export const CRITICAL_LEVEL = 95;
+export { CRITICAL_LEVEL } from './constants';
 
 /** Selectable depot presets. The .env depot is always the first entry. */
 export const DEPOT_PRESETS: Depot[] = dedupe([

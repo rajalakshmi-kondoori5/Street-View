@@ -19,13 +19,10 @@ select "Bin ID", "Latitude", "Longitude" from public.bins
 where "Latitude" is null or "Longitude" is null or ("Latitude" = 0 and "Longitude" = 0);
 
 -- ---------------------------------------------------------------------------
--- OPTIONAL hardening (review before running).
--- The dashboard only needs SELECT. If your UPDATE policy allows the `anon` role,
--- anyone with the public key can change fill levels. A middle ground for a demo is to
--- let anon update ONLY the sensor columns:
+-- HARDENING: run ONLY after the backend is deployed and the ESP32 posts to it
+-- (Serial Monitor shows "Sent BIN-001 = ..").
+-- The dashboard only needs SELECT, and the backend writes with the secret key
+-- (which bypasses RLS), so the public key no longer needs UPDATE at all.
 --
--- revoke update on public.bins from anon;
--- grant update ("Fill Level", "Status", "Last Updated") on public.bins to anon;
---
--- For production, give each ESP32 its own credentials (or send readings through an
--- Edge Function that checks a per-device secret) instead of the shared anon key.
+-- drop policy if exists "<your update policy name from query 3>" on public.bins;
+-- revoke update, insert, delete on public.bins from anon;
