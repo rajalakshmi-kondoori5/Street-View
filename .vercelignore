@@ -1,3 +1,6 @@
 backend
 esp32
 supabase
+.env
+.env.*
+!.env.example
