@@ -9,6 +9,7 @@ import { RouteMap } from './components/RouteMap';
 import { CollectionOrder, RouteStatus, RouteSummary, RouteWarnings } from './components/RoutePanels';
 import { Settings } from './components/Settings';
 import { Sidebar, type View } from './components/Sidebar';
+import { Splash } from './components/Splash';
 import { Toolbar } from './components/Toolbar';
 import { config, isSupabaseConfigured } from './config';
 import { useAlerts } from './hooks/useAlerts';
@@ -23,6 +24,7 @@ export default function App() {
   const [threshold, setThreshold] = usePersistentState<number>('sv.threshold', config.fillThreshold);
   const [depot, setDepot] = usePersistentState<Depot>('sv.depot', config.depot);
   const [useRoad, setUseRoad] = usePersistentState<boolean>('sv.road', true);
+  const [showSplash, setShowSplash] = useState(true);
 
   const data = useBins(mode, threshold);
   const alerts = useAlerts(data.bins, threshold, data.ready, mode);
@@ -141,6 +143,7 @@ export default function App() {
         </main>
       </div>
       <Toasts toasts={alerts.toasts} onDismiss={alerts.dismissToast} />
+      {showSplash && <Splash onDone={() => setShowSplash(false)} />}
     </div>
   );
 }

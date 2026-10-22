@@ -255,3 +255,51 @@ table.bins.compact .addr { max-width: 150px; overflow: hidden; text-overflow: el
 table.bins.compact .fill-track { width: 70px; }
 table.bins.compact .fill { min-width: 70px; }
 .conn-unconfigured .dot { background: var(--red); }
+
+/* ---------- load splash ---------- */
+.splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: var(--bg); cursor: pointer; animation: sp-fade 0.45s ease 3.35s forwards; }
+.splash.leaving { animation: sp-fade-now 0.3s ease forwards; }
+.splash-art { width: min(640px, 100%); height: auto; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.splash-text { text-align: center; }
+.splash-text h1 { font-size: 32px; font-weight: 800; color: var(--green-900); letter-spacing: 0.5px; }
+.splash-text p { margin: 4px 0 0; color: var(--ink-2); font-weight: 500; }
+@keyframes sp-fade { to { opacity: 0; visibility: hidden; } }
+@keyframes sp-fade-now { to { opacity: 0; visibility: hidden; } }
+
+/* truck: drive in (0–0.9s), wait for the dump, drive off (2.45–3.35s) */
+.sp-truck { animation: sp-truck 3.35s both; }
+@keyframes sp-truck {
+  0% { transform: translateX(-520px); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  27% { transform: translateX(0); }
+  52% { transform: translateY(0); }
+  56% { transform: translateY(2px); }
+  60% { transform: translateY(0); }
+  73% { transform: translateX(0); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  100% { transform: translateX(600px); }
+}
+.sp-wheel { transform-box: fill-box; transform-origin: center; animation: sp-wheel 3.35s both; }
+@keyframes sp-wheel {
+  0% { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  27%, 73% { transform: rotate(900deg); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  100% { transform: rotate(1800deg); }
+}
+.sp-puff { opacity: 0; transform-box: fill-box; transform-origin: center; animation: sp-puff 0.6s ease-out 2.45s; }
+@keyframes sp-puff { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: translate(-30px, -14px) scale(1.6); } }
+
+/* bin: lift, tip over the hopper, shake, set back down */
+.sp-bin { transform-box: fill-box; transform-origin: 100% 100%; animation: sp-bin 1.5s ease-in-out 0.9s both; }
+@keyframes sp-bin {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(18px, -120px) rotate(0deg); }
+  45% { transform: translate(18px, -120px) rotate(150deg); }
+  52% { transform: translate(18px, -120px) rotate(140deg); }
+  59% { transform: translate(18px, -120px) rotate(150deg); }
+  70% { transform: translate(18px, -120px) rotate(150deg); }
+  85% { transform: translate(18px, -120px) rotate(0deg); }
+}
+.sp-trash { opacity: 0; transform-box: fill-box; transform-origin: center; animation: sp-trash 0.45s ease-in forwards; }
+@keyframes sp-trash { 0% { opacity: 1; transform: translate(0, 0) rotate(0deg); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, 34px) rotate(160deg); } }
+.sp-lane { animation: sp-lane 3.35s linear both; }
+@keyframes sp-lane { to { stroke-dashoffset: -160; } }
+
+@media (prefers-reduced-motion: reduce) { .splash { display: none; } }
