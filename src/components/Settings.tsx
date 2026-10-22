@@ -87,6 +87,7 @@ export function Settings(p: Props) {
           <div><dt>Table</dt><dd className="mono">public.bins</dd></div>
           <div><dt>Realtime</dt><dd>{p.mode === 'live' ? p.connection : 'not used in TEST MODE'}</dd></div>
           <div><dt>Road routing server</dt><dd>{config.osrmUrl}</dd></div>
+          <div><dt>Deployed version (git commit)</dt><dd className="mono">{__APP_COMMIT__}</dd></div>
           <div><dt>Fallback speed / service time</dt><dd>{config.fallbackSpeedKmh} km/h · {config.serviceMinPerBin} min per bin</dd></div>
         </dl>
         <p className="muted small">

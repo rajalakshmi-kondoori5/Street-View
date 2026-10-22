@@ -87,7 +87,7 @@ describe('route API', () => {
 
   it('serves health, bins and 404', async () => {
     const { app } = setup();
-    expect((await request(app).get('/health').expect(200)).body).toMatchObject({ ok: true, devicesRegistered: 2 });
+    expect((await request(app).get('/health').expect(200)).body).toMatchObject({ ok: true, commit: 'local', devicesRegistered: 2 });
     expect((await request(app).get('/api/bins').expect(200)).body.count).toBe(8);
     await request(app).get('/nope').expect(404);
   });

@@ -103,7 +103,11 @@ Environment variables:
 
 (Alternatively, New → Blueprint uses `render.yaml` with the same settings.)
 
-**Frontend → Vercel**: Add New → Project → import this repo (root directory `.`; Vite is detected, see `vercel.json`). Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (publishable key), and `VITE_DATA_MODE=live` if the deployed site should open in LIVE MODE.
+**Auto-deploy on Render:** with Root Directory `backend`, Render only redeploys for changes inside `backend/`, but the API also bundles shared code from `src/`. In Settings → Build & Deploy → **Build Filters → Included Paths**, add:
+`backend/**`, `src/routing/**`, `src/data/binMapper.ts`, `src/constants.ts`, `src/types.ts`.
+Check what is live at `https://street-view.onrender.com/health` (`commit` field).
+
+**Frontend → Vercel**: Add New → Project → import this repo (root directory `.`; Vite is detected, see `vercel.json`). Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (publishable key), and `VITE_DATA_MODE=live` if the deployed site should open in LIVE MODE. Every push to `main` redeploys `https://street-view-dashboard.vercel.app`; the deployed commit is shown under Settings → System. Environment variables are build-time: after changing one in Vercel, redeploy.
 
 ## Supabase checks
 

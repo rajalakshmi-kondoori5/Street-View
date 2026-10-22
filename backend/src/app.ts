@@ -47,7 +47,7 @@ export function createApp({ config, store, fetchFn, now = Date.now }: AppDeps) {
   });
 
   app.get('/health', (_req, res) => {
-    res.json({ ok: true, time: new Date(now()).toISOString(), devicesRegistered: config.deviceKeys.size });
+    res.json({ ok: true, commit: config.commit, time: new Date(now()).toISOString(), devicesRegistered: config.deviceKeys.size });
   });
 
   /** All bins (same shape the dashboard uses). */

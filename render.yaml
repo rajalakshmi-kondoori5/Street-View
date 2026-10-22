@@ -10,6 +10,14 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
+    # The backend also bundles shared code from src/, so redeploy when that changes too.
+    buildFilter:
+      paths:
+        - backend/**
+        - src/routing/**
+        - src/data/binMapper.ts
+        - src/constants.ts
+        - src/types.ts
     envVars:
       - key: NODE_VERSION
         value: "22"

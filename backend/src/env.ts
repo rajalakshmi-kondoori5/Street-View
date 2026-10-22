@@ -32,6 +32,8 @@ export interface AppConfig {
   serviceMinPerBin: number;
   /** Minimum seconds between two readings from the same bin. */
   minReadingIntervalSec: number;
+  /** Git commit being served (Render sets RENDER_GIT_COMMIT), shown on /health. */
+  commit: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -51,5 +53,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     fallbackSpeedKmh: num(env.FALLBACK_SPEED_KMH, 25),
     serviceMinPerBin: num(env.SERVICE_MIN_PER_BIN, 2),
     minReadingIntervalSec: num(env.MIN_READING_INTERVAL_SEC, 2),
+    commit: (env.RENDER_GIT_COMMIT ?? '').slice(0, 7) || 'local',
   };
 }
