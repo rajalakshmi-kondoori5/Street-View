@@ -5,12 +5,11 @@ An AI and IoT-based smart waste management system that monitors bin fill levels 
 **AI-Driven Smart Waste Bin Monitoring & Route Optimization**
 
 ```
-HC-SR04 → ESP32 ──HTTPS + device key──► Backend API (Render) ──secret key──► Supabase (bins)
-                                         GET /api/route (NN + 2-opt)            │ Realtime
-                                                                                ▼
-                                              React dashboard (Vercel): bins ≥ threshold →
-                                              OSRM matrix → Nearest Neighbour → 2-opt →
-                                              Depot→bins→Depot · map · alerts
+HC-SR04 → ESP32 ──Wi-Fi / HTTPS──► Supabase (bins) ──Realtime──► React dashboard (Vercel)
+                                        │                         bins ≥ threshold → OSRM matrix →
+                                        │                         Nearest Neighbour → 2-opt →
+                                        │                         Depot→bins→Depot · map · alerts
+                                        └──► Backend API (Render): GET /api/route (NN + 2-opt)
 ```
 
 ## Quick start
@@ -59,7 +58,9 @@ Raised on threshold **crossings** only (no repeats for a bin that stays full): *
 
 ## ESP32
 
-`esp32/smart_bin/smart_bin.ino` measures with the HC-SR04, converts distance to fill % and POSTs `{"fillLevel": n}` to `API_URL/api/bins/<BIN_ID>/reading` with header `X-Device-Key`. Copy `secrets.example.h` → `secrets.h` (git-ignored). The device holds no Supabase key and does no routing/AI.
+`esp32/smart_bin/smart_bin.ino` measures with the HC-SR04, converts distance to fill %, and PATCHes its own row in Supabase (`"Bin ID" = BIN_ID`) with `Fill Level`, `Status` and `Last Updated`, using the publishable key. Copy `secrets.example.h` → `secrets.h` (git-ignored). The device does no routing/AI.
+
+Note: this needs the anon UPDATE policy on `bins`, so anyone who has the publishable key can also change fill levels. The backend's `POST /api/bins/:binId/reading` endpoint (below) is an optional, more secure alternative for later.
 
 ## Backend (`backend/`, deployed on Render)
 
@@ -70,7 +71,7 @@ Express API. It reuses the same routing code as the dashboard (`src/routing`, bu
 | `GET /health` | Liveness check (used by Render) |
 | `GET /api/bins` | All bins |
 | `GET /api/route?threshold=90&depotLat=&depotLng=&road=true` | Optimized Depot → full bins → Depot plan |
-| `POST /api/bins/:binId/reading` | ESP32 ingest. Header `X-Device-Key`, body `{"fillLevel": 0-100}`. The server checks the per-bin key, sets `Status` and `Last Updated`, and writes with the Supabase secret key. Rate-limited per bin. |
+| `POST /api/bins/:binId/reading` | Optional secure ingest (the current ESP32 sketch does not use it). Header `X-Device-Key`, body `{"fillLevel": 0-100}`. The server checks the per-bin key, sets `Status` and `Last Updated`, and writes with the Supabase secret key. Rate-limited per bin. |
 
 ```bash
 cd backend
@@ -84,20 +85,29 @@ The dashboard does not depend on the backend: it reads Supabase directly (with R
 
 ## Deployment
 
-**Backend → Render**: New → Blueprint → select this repo (uses `render.yaml`). Then set the secret env vars in the Render dashboard:
-- `SUPABASE_SECRET_KEY`: Supabase → Project Settings → API Keys → secret key (server only)
-- `DEVICE_KEYS`: `BIN-001:<same value as DEVICE_KEY in the ESP32 secrets.h>` (add more bins with commas)
-- `CORS_ORIGINS`: your Vercel URL, e.g. `https://street-view.vercel.app`
+**Backend → Render** (New → Web Service → connect this repo):
 
-Then put the Render URL into the ESP32 `secrets.h` as `API_URL` and re-flash.
+| Field | Value |
+|---|---|
+| Root Directory | `backend` |
+| Runtime | Node |
+| Build Command | `npm ci --include=dev && npm run build` |
+| Start Command | `npm start` |
+| Health Check Path | `/health` |
+
+Environment variables:
+- `SUPABASE_URL`: `https://mimobvudcwnbupwfghpd.supabase.co`
+- `SUPABASE_SECRET_KEY`: Supabase → Project Settings → API Keys → secret key (server only)
+- `CORS_ORIGINS`: your Vercel URL, e.g. `https://street-view.vercel.app`
+- `DEVICE_KEYS`: optional, only if you later switch the ESP32 to the secure ingest endpoint
+
+(Alternatively, New → Blueprint uses `render.yaml` with the same settings.)
 
 **Frontend → Vercel**: Add New → Project → import this repo (root directory `.`; Vite is detected, see `vercel.json`). Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (publishable key), and `VITE_DATA_MODE=live` if the deployed site should open in LIVE MODE.
 
-**After the ESP32 posts through the backend**, run the hardening block at the end of `supabase/verify.sql` so the public key can no longer write.
-
 ## Supabase checks
 
-`supabase/verify.sql` lists the columns, confirms `bins` is in the Realtime publication, shows RLS policies, and finds bins without coordinates. The commented hardening block at the end removes the public key's write access once the backend is live.
+`supabase/verify.sql` lists the columns, confirms `bins` is in the Realtime publication, shows RLS policies, and finds bins without coordinates. The commented hardening block at the end removes the public key's write access; do **not** run it while the ESP32 writes to Supabase directly, or the device's updates will be rejected.
 
 ## Scripts
 

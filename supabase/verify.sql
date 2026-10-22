@@ -19,8 +19,9 @@ select "Bin ID", "Latitude", "Longitude" from public.bins
 where "Latitude" is null or "Longitude" is null or ("Latitude" = 0 and "Longitude" = 0);
 
 -- ---------------------------------------------------------------------------
--- HARDENING: run ONLY after the backend is deployed and the ESP32 posts to it
--- (Serial Monitor shows "Sent BIN-001 = ..").
+-- HARDENING: do NOT run this while the ESP32 writes to Supabase directly (the current
+-- sketch does); it would block the device. Run it only if you switch the ESP32 to the
+-- backend's POST /api/bins/:binId/reading endpoint.
 -- The dashboard only needs SELECT, and the backend writes with the secret key
 -- (which bypasses RLS), so the public key no longer needs UPDATE at all.
 --

@@ -2,10 +2,8 @@
   Street View — Smart Bin node (ESP32 + HC-SR04)
 
   Job of this device: MEASURE and REPORT only.
-    HC-SR04 distance -> fill %  -> HTTPS POST to the Street View backend (Render),
-    which verifies DEVICE_KEY and updates this BIN_ID's row in Supabase.
-  All route optimisation / alert logic runs in the dashboard and backend, NOT here.
-  The server sets Status and Last Updated, so the ESP32 needs no clock.
+    HC-SR04 distance -> fill %  -> HTTPS PATCH to Supabase `bins` row for this BIN_ID.
+  All route optimisation / alert logic runs in the dashboard, NOT here.
 
   Wiring (HC-SR04 is 5 V; use a divider on ECHO: 1k from ECHO, 2k to GND -> 3.3 V to the ESP32):
     VCC  -> 5V (VIN)      GND  -> GND
@@ -19,6 +17,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <time.h>
 #include "secrets.h"
 
 // ---- hardware ----
@@ -32,6 +31,7 @@ const float BIN_FULL_CM  = 5.0;   // sensor -> rubbish when completely full
 // ---- reporting ----
 const unsigned long REPORT_EVERY_MS = 30000;  // regular report
 const float REPORT_ON_CHANGE_PCT = 5.0;       // or sooner when fill changes this much
+const float STATUS_FULL_PCT = 90.0;           // only for the human-readable Status column
 
 float lastSentFill = -100;
 unsigned long lastSentAt = 0;
@@ -73,6 +73,16 @@ float distanceToFill(float cm) {
   return roundf(pct);
 }
 
+String isoNowUtc() {
+  time_t now = time(nullptr);
+  if (now < 1700000000) return "";  // clock not synced yet
+  struct tm t;
+  gmtime_r(&now, &t);
+  char buf[25];
+  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &t);
+  return String(buf);
+}
+
 void connectWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   Serial.printf("Connecting to %s", WIFI_SSID);
@@ -87,36 +97,44 @@ void connectWifi() {
 
 bool sendFill(float fill) {
   WiFiClientSecure client;
-  client.setInsecure();  // demo only; for production use client.setCACert(<root CA of your API host>)
+  client.setInsecure();  // demo only — for production use client.setCACert(<Supabase root CA>)
   HTTPClient http;
-  http.setTimeout(60000);  // Render free tier can take ~50 s to wake up
 
-  // POST to the Street View backend; it checks DEVICE_KEY and writes to Supabase server-side.
-  String url = String(API_URL) + "/api/bins/" + BIN_ID + "/reading";
+  // Column names contain spaces, so they are double-quoted and URL-encoded: "Bin ID"
+  String url = String(SUPABASE_URL) + "/rest/v1/bins?%22Bin%20ID%22=eq." + BIN_ID;
   if (!http.begin(client, url)) return false;
+  http.addHeader("apikey", SUPABASE_PUBLISHABLE_KEY);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Device-Key", DEVICE_KEY);
+  http.addHeader("Prefer", "return=representation");  // lets us detect "0 rows updated"
 
-  String body = String("{\"fillLevel\":") + String(fill, 0) + "}";
-  int code = http.POST(body);
+  String status = fill >= STATUS_FULL_PCT ? "Full" : "Normal";
+  String ts = isoNowUtc();
+  String body = String("{\"Fill Level\":") + String(fill, 0) + ",\"Status\":\"" + status + "\"";
+  if (ts.length()) body += ",\"Last Updated\":\"" + ts + "\"";
+  body += "}";
+
+  int code = http.sendRequest("PATCH", body);
   String resp = http.getString();
   http.end();
 
-  if (code == 200) {
-    Serial.printf("Sent %s = %.0f%%\n", BIN_ID, fill);
-    return true;
+  if (code < 200 || code >= 300) {
+    Serial.printf("PATCH failed %d: %s\n", code, resp.c_str());
+    return false;
   }
-  if (code == 401) Serial.println("401: DEVICE_KEY does not match DEVICE_KEYS on the server for this BIN_ID.");
-  else if (code == 404) Serial.println("404: BIN_ID has no row in the bins table. Add it in Supabase first.");
-  else if (code == 429) Serial.println("429: sending too often; slow down.");
-  else Serial.printf("POST failed %d: %s\n", code, resp.c_str());
-  return false;
+  if (resp == "[]") {
+    Serial.println("PATCH matched 0 rows: check BIN_ID exists in `bins` and the UPDATE policy allows it.");
+    return false;
+  }
+  Serial.printf("Sent %s = %.0f%% (%s)\n", BIN_ID, fill, status.c_str());
+  return true;
 }
+
 void setup() {
   Serial.begin(115200);
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   connectWifi();
+  configTime(0, 0, "pool.ntp.org", "time.google.com");
 }
 
 void loop() {
